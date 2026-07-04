@@ -117,7 +117,7 @@ func (d *Detector) detectAsync(ctx context.Context, dnsCtx *Context) (res *Resul
 				res = r.res
 			}
 
-			return res, errors.Annotate(err, "executing jobs async: %w")
+			return res, errors.Annotate(r.err, "executing jobs async: %w")
 		}
 	}
 

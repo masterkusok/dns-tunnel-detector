@@ -21,7 +21,7 @@ DNS Tunneling detection framework + CLI tool.
 Here is the short list of things that need to be done in this project:
 
 - [ ] Implement Basic jobs:
-    - [ ] Basic heuristic modules
+    - [X] Basic heuristic modules
     - [ ] Basic Statistic modules
 - [ ] Implement CLI tool:
     - [ ] Implement CLI stub resolver with DNS tunneling protection.
