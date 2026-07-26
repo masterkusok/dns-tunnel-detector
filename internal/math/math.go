@@ -2,8 +2,27 @@
 package math
 
 import (
+	"cmp"
 	"math"
 )
+
+// Max returns maximum of two numbers.
+func Max[T cmp.Ordered](x, y T) (res T) {
+	if x > y {
+		return x
+	}
+
+	return y
+}
+
+// Min returns minimum of two numbers.
+func Min[T cmp.Ordered](x, y T) (res T) {
+	if x < y {
+		return x
+	}
+
+	return y
+}
 
 // CalculateShannonEntropy calculates shannon entropy based for given string.
 func CalculateShannonEntropy(s string) (e float64) {
