@@ -3,7 +3,7 @@ package detectortest
 import (
 	"context"
 
-	detector "github.com/masterkusok/dns-tunnel-detector"
+	"github.com/masterkusok/dns-tunnel-detector/detector"
 	"github.com/masterkusok/dns-tunnel-detector/job/statistic"
 )
 

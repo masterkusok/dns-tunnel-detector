@@ -3,7 +3,7 @@ package heuristic_test
 import (
 	"testing"
 
-	detector "github.com/masterkusok/dns-tunnel-detector"
+	"github.com/masterkusok/dns-tunnel-detector/detector"
 	"github.com/masterkusok/dns-tunnel-detector/job/heuristic"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"

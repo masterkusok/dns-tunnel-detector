@@ -2,11 +2,14 @@ package statistic
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/masterkusok/dns-tunnel-detector/internal/algorithm"
 )
 
 // CardinalityCounter is an interface for counting subdomain cardinality.
+//
+// TODO: Add distributed counter.
 type CardinalityCounter interface {
 	// Add adds subdomain to counter.  Implementations must ensure that
 	// non-unique elements are ignored.
@@ -22,12 +25,14 @@ type CardinalityCounter interface {
 // [HLLCounter], this implementation always returns the exact number of unique
 // subdomains.
 type MapCounter struct {
+	mu   *sync.RWMutex
 	data map[string]map[string]struct{}
 }
 
 // NewMapCounter returns properly initialized *MapCounter.
 func NewMapCounter() (m *MapCounter) {
 	return &MapCounter{
+		mu:   &sync.RWMutex{},
 		data: map[string]map[string]struct{}{},
 	}
 }
@@ -37,6 +42,9 @@ var _ CardinalityCounter = (*MapCounter)(nil)
 
 // Add implements the [CardinalityCounter] for MapCounter.
 func (m *MapCounter) Add(tld, subdomain string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	_, ok := m.data[tld]
 	if !ok {
 		m.data[tld] = map[string]struct{}{}
@@ -47,11 +55,10 @@ func (m *MapCounter) Add(tld, subdomain string) {
 
 // Count implements the [CardinalityCounter] for MapCounter.
 func (m *MapCounter) Count(tld string) (res int64) {
-	for range m.data[tld] {
-		res++
-	}
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 
-	return res
+	return int64(len(m.data[tld]))
 }
 
 // hllFactory is used to create new [algorithm.HyperLogLog] instances.
@@ -90,6 +97,7 @@ type HLLCounterConfig struct {
 // implementation will use constant and very small amount of memory for any
 // number of subdomains.
 type HLLCounter struct {
+	mu      *sync.RWMutex
 	factory *hllFactory
 	data    map[string]*algorithm.HyperLogLog
 }
@@ -102,6 +110,7 @@ func NewHLLCounter() (h *HLLCounter, err error) {
 	}
 
 	return &HLLCounter{
+		mu:      &sync.RWMutex{},
 		factory: factory,
 		data:    map[string]*algorithm.HyperLogLog{},
 	}, nil
@@ -112,16 +121,27 @@ var _ CardinalityCounter = (*HLLCounter)(nil)
 
 // Add implements the [CardinalityCounter] for HLLCounter.
 func (h *HLLCounter) Add(tld, subdomain string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	sketch, ok := h.data[tld]
 	if !ok {
 		h.data[tld] = h.factory.new()
 		sketch = h.data[tld]
 	}
 
-	sketch.Add(tld)
+	sketch.Add(subdomain)
 }
 
 // Count implements the [CardinalityCounter] for HLLCounter.
 func (h *HLLCounter) Count(tld string) (res int64) {
-	return int64(h.data[tld].CountUnique())
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	sketch, ok := h.data[tld]
+	if !ok {
+		return 0
+	}
+
+	return int64(sketch.CountUnique())
 }

@@ -28,7 +28,7 @@ type Context struct {
 // - [StatusOk]
 // - [StatusUndefined]
 // - [StatusDetected]
-type Status = uint8
+type Status uint8
 
 // Possible detection result statuses.
 //
@@ -44,7 +44,7 @@ type Result struct {
 	Status Status
 }
 
-// Job represets single job of the tunneling detection pipeline.
+// Job represents single job of the tunneling detection pipeline.
 type Job interface {
 	Process(ctx context.Context, dnsCtx *Context) (res *Result, err error)
 }

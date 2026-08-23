@@ -5,7 +5,7 @@ import (
 	"context"
 	"strings"
 
-	detector "github.com/masterkusok/dns-tunnel-detector"
+	"github.com/masterkusok/dns-tunnel-detector/detector"
 	"github.com/miekg/dns"
 )
 
@@ -41,7 +41,7 @@ type Length struct {
 	subdomainLen uint8
 }
 
-// NewLength returns properly initialized *Length.  is conf is nil, default
+// NewLength returns properly initialized *Length.  If conf is nil, default
 // values will be used.
 func NewLength(conf *LengthConfig) (l *Length) {
 	conf = cmp.Or(conf)

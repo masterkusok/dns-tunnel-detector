@@ -21,10 +21,18 @@ DNS Tunneling detection framework + CLI tool.
 Here is the short list of things that need to be done in this project:
 
 - [ ] Implement Basic jobs:
+    - [ ] Consider redisigning jobs to scoring system
     - [X] Basic heuristic modules
     - [ ] Basic Statistic modules
+        - [ ] Cardinality module
+            - [ ] Add basic Cardinality counters
+            - [ ] Add Distributed counter based on Resid
 - [ ] Implement CLI tool:
-    - [ ] Implement CLI stub resolver with DNS tunneling protection.
+    - [X] Implement CLI stub resolver with DNS tunneling protection.
+    - [ ] Support encrypted DNS protocols in config.
+- [ ] Implement vault (cache)
+    - [ ] Implement basic local vault (with persistence)
+    - [ ] Implement distributed vault
 - [ ] Documentation:
     - [ ] Improve documentation further.
 - [ ] Add precommit hooks/linting scripts.

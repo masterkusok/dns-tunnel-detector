@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	detector "github.com/masterkusok/dns-tunnel-detector"
+	"github.com/masterkusok/dns-tunnel-detector/detector"
 	"golang.org/x/net/publicsuffix"
 )
 
@@ -38,7 +38,7 @@ func NewSubdomainCardinality(conf *SubdomainCardinalityConfig) (c *SubdomainCard
 }
 
 // Process implements the [detector.Job] interface for *SubdomainCardinality.
-// dnsCtx must not be nil.  It is safe for concurrent use.  err is always nil.
+// dnsCtx must not be nil.  It is safe for concurrent use.
 func (e *SubdomainCardinality) Process(
 	_ context.Context,
 	dnsCtx *detector.Context,
@@ -46,7 +46,7 @@ func (e *SubdomainCardinality) Process(
 	msg := dnsCtx.Request
 
 	for _, q := range msg.Question {
-		domain := q.Name
+		domain := strings.TrimSuffix(q.Name, ".")
 
 		tld, err := publicsuffix.EffectiveTLDPlusOne(domain)
 		if err != nil {
@@ -56,7 +56,7 @@ func (e *SubdomainCardinality) Process(
 		subdomain := strings.TrimSuffix(domain, tld)
 		e.counter.Add(tld, subdomain)
 
-		if e.counter.Count(domain) > e.maxCardinality {
+		if e.counter.Count(tld) > e.maxCardinality {
 			return &detector.Result{
 				Status: detector.StatusDetected,
 			}, nil

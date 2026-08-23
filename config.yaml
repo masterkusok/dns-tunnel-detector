@@ -1,0 +1,10 @@
+# This file is the example YAML configuration for the dns-tunnel detector.
+
+upstream_addrs:
+  - 1.1.1.1
+  - 8.8.8.8
+listen_addrs:
+  udp:
+    - 0.0.0.0:53
+  tcp:
+    - 0.0.0.0:53

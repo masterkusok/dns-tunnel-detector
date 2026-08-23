@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	detector "github.com/masterkusok/dns-tunnel-detector"
+	"github.com/masterkusok/dns-tunnel-detector/detector"
 	"github.com/masterkusok/dns-tunnel-detector/internal/detectortest"
 	"github.com/masterkusok/dns-tunnel-detector/job/statistic"
 	"github.com/miekg/dns"
@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: Add integration test with at least map counter for that.
 func TestSubdomainCardinality(t *testing.T) {
 	t.Parallel()
 

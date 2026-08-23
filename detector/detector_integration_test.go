@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	detector "github.com/masterkusok/dns-tunnel-detector"
+	"github.com/masterkusok/dns-tunnel-detector/detector"
 	"github.com/masterkusok/dns-tunnel-detector/internal/detectortest"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
