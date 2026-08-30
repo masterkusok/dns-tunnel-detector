@@ -5,6 +5,7 @@ import (
 
 	"github.com/masterkusok/dns-tunnel-detector/detector"
 	"github.com/masterkusok/dns-tunnel-detector/job/statistic"
+	"github.com/masterkusok/dns-tunnel-detector/vault/remote"
 )
 
 // Job is the mock implementation of the [detector.Job] interface.
@@ -37,4 +38,29 @@ func (c *Counter) Add(tld, subdomain string) {
 // Count implements the [CardinalityCounter] interface for *Counter.
 func (c *Counter) Count(tld string) (res int64) {
 	return c.OnCount(tld)
+}
+
+// Remote is the mock implementation of the [remote.Interface].
+type Remote struct {
+	OnNotifyAdd     func(ctx context.Context, v string)
+	OnNotifications func() (res <-chan string)
+	OnMap           func(ctx context.Context) (res map[string]struct{})
+}
+
+// type check
+var _ remote.Interface = (*Remote)(nil)
+
+// NotifyAdd implements the [Interface] for *Remote.
+func (r *Remote) NotifyAdd(ctx context.Context, v string) {
+	r.OnNotifyAdd(ctx, v)
+}
+
+// Notifications implements the [Interface] for *Remote.
+func (r *Remote) Notifications() (res <-chan string) {
+	return r.OnNotifications()
+}
+
+// Map implements the [Interface] for *Remote.
+func (r *Remote) Map(ctx context.Context) (res map[string]struct{}) {
+	return r.OnMap(ctx)
 }

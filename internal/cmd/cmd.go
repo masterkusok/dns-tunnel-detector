@@ -7,12 +7,16 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/masterkusok/dns-tunnel-detector/detector"
 	"github.com/masterkusok/dns-tunnel-detector/internal/handler"
 	"github.com/masterkusok/dns-tunnel-detector/job/heuristic"
 	"github.com/masterkusok/dns-tunnel-detector/job/statistic"
+	"github.com/masterkusok/dns-tunnel-detector/vault"
+	"github.com/masterkusok/dns-tunnel-detector/vault/remote"
+	"github.com/redis/go-redis/v9"
 )
 
 // TODO: extend.
@@ -31,14 +35,64 @@ var defaultJobs = []detector.Job{
 func Main() {
 	ctx := context.Background()
 
-	logger := slog.Default()
+	envs, err := parseEnvironment()
+	checkError(ctx, slog.Default(), err)
+
+	logger := slog.New(slog.NewTextHandler(
+		os.Stdout,
+		&slog.HandlerOptions{
+			Level: logLevelFromVerbosity(envs.Verbose),
+		}),
+	)
 	logger.InfoContext(ctx, "running dns-tunnel-detector")
 
 	config, err := parseConfig("config.yaml")
 	checkError(ctx, logger, err)
 
+	var (
+		clientIPRemote remote.Interface
+		etldRemote     remote.Interface
+	)
+
+	if envs.RemoteEnabled {
+		client := redis.NewClient(&redis.Options{
+			Addr: envs.RedisAddr,
+		})
+
+		cRedis := remote.NewRedis(ctx, &remote.RedisConfig{
+			Logger:  logger.With("prefix", "client_ip_remote"),
+			Client:  client,
+			Key:     envs.ClientIPsRedisKey,
+			Channel: envs.ClientIPsRedisChannel,
+		})
+		defer cRedis.Close()
+
+		eRedis := remote.NewRedis(ctx, &remote.RedisConfig{
+			Logger:  logger.With("prefix", "etld_remote"),
+			Client:  client,
+			Key:     envs.ETLDRedisKey,
+			Channel: envs.ETLDRedisChannel,
+		})
+		defer eRedis.Close()
+
+		clientIPRemote = cRedis
+		etldRemote = eRedis
+	} else {
+		clientIPRemote = remote.Empty{}
+		etldRemote = remote.Empty{}
+	}
+
+	vault := vault.New(ctx, &vault.Config{
+		Logger:         logger.With("prefix", "vault"),
+		ETLDRemote:     etldRemote,
+		ClientIPRemote: clientIPRemote,
+		FallbackTicker: time.NewTicker(envs.RemoteSyncPeriod),
+		RemoteEnabled:  envs.RemoteEnabled,
+	})
+
 	d := detector.New(&detector.Config{
-		Jobs: defaultJobs,
+		Jobs:  defaultJobs,
+		Vault: vault,
 	})
 
 	h := handler.NewDefault(&handler.Config{

@@ -33,3 +33,20 @@ func (m *Map[K, V]) Set(k K, v V) {
 
 	m.data[k] = v
 }
+
+// Load sets newData as the internal map for m.
+func (m *Map[K, V]) Load(newData map[K]V) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.data = newData
+}
+
+// Len returns length of the underlying map.
+//
+// NOTE: I do not lock mutex here, because this method is used only for
+// statistics in logs, so, we do not actually care about possible small
+// inconsistency here.
+func (m *Map[K, V]) Len() (l int) {
+	return len(m.data)
+}

@@ -6,6 +6,8 @@ import (
 
 	"github.com/masterkusok/dns-tunnel-detector/detector"
 	"github.com/masterkusok/dns-tunnel-detector/internal/detectortest"
+	"github.com/masterkusok/dns-tunnel-detector/internal/testutil"
+	"github.com/masterkusok/dns-tunnel-detector/vault"
 	"github.com/miekg/dns"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,9 +41,11 @@ func TestDetector_Process(t *testing.T) {
 	}
 
 	d := detector.New(&detector.Config{
+		Logger: testutil.NewDiscardLogger(),
 		Jobs: []detector.Job{
 			job,
 		},
+		Vault: vault.Empty{},
 	})
 
 	testCases := []struct {

@@ -30,9 +30,12 @@ Here is the short list of things that need to be done in this project:
 - [ ] Implement CLI tool:
     - [X] Implement CLI stub resolver with DNS tunneling protection.
     - [ ] Support encrypted DNS protocols in config.
+    - [ ] Add Dockerfile.
 - [ ] Implement vault (cache)
     - [ ] Implement basic local vault (with persistence)
-    - [ ] Implement distributed vault
+    - [X] Implement distributed vault
+    - [ ] Add invalidation mechanism
 - [ ] Documentation:
     - [ ] Improve documentation further.
 - [ ] Add precommit hooks/linting scripts.
+- [ ] Improve tests, remove crutches and TODOs.
