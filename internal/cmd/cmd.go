@@ -3,6 +3,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -58,6 +59,9 @@ func Main() {
 		client := redis.NewClient(&redis.Options{
 			Addr: envs.RedisAddr,
 		})
+
+		_, err = client.Ping(ctx).Result()
+		checkError(ctx, logger, fmt.Errorf("sending ping to redis remote: %w", err))
 
 		cRedis := remote.NewRedis(ctx, &remote.RedisConfig{
 			Logger:  logger.With("prefix", "client_ip_remote"),
