@@ -25,7 +25,7 @@ Here is the short list of things that need to be done in this project:
     - [X] Basic heuristic modules
     - [ ] Basic Statistic modules
         - [ ] Cardinality module
-            - [ ] Add basic Cardinality counters
+            - [X] Add basic Cardinality counters
             - [ ] Add Distributed counter based on Resid
 - [ ] Implement CLI tool:
     - [X] Implement CLI stub resolver with DNS tunneling protection.

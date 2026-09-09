@@ -95,8 +95,9 @@ func Main() {
 	})
 
 	d := detector.New(&detector.Config{
-		Jobs:  defaultJobs,
-		Vault: vault,
+		Logger: logger,
+		Jobs:   defaultJobs,
+		Vault:  vault,
 	})
 
 	h := handler.NewDefault(&handler.Config{
