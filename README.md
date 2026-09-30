@@ -26,7 +26,7 @@ Here is the short list of things that need to be done in this project:
     - [ ] Basic Statistic modules
         - [ ] Cardinality module
             - [X] Add basic Cardinality counters
-            - [ ] Add Distributed counter based on Resid
+            - [ ] Add Distributed counter based on Redis
 - [ ] Implement CLI tool:
     - [X] Implement CLI stub resolver with DNS tunneling protection.
     - [ ] Support encrypted DNS protocols in config.
@@ -34,7 +34,7 @@ Here is the short list of things that need to be done in this project:
 - [ ] Implement vault (cache)
     - [ ] Implement basic local vault (with persistence)
     - [X] Implement distributed vault
-    - [ ] Add invalidation mechanism
+    - [X] Add invalidation mechanism
 - [ ] Documentation:
     - [ ] Improve documentation further.
 - [ ] Add precommit hooks/linting scripts.

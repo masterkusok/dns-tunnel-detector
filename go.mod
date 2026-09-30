@@ -1,6 +1,6 @@
 module github.com/masterkusok/dns-tunnel-detector
 
-go 1.26.5
+go 1.27.1
 
 require (
 	github.com/AdguardTeam/dnsproxy v0.83.1

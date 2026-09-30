@@ -17,6 +17,9 @@ type environment struct {
 	RedisAddr             string        `env:"REDIS_ADDR"`
 	RemoteSyncPeriod      time.Duration `env:"REMOTE_SYNC_PERIOD" envDefault:"5m"`
 	RemoteEnabled         bool          `env:"REMOTE_ENABLED"`
+	RemoteCleanupPeriod   time.Duration `env:"REMOTE_CLEANUP_PERIOD" envDefault:"5m"`
+
+	CacheInvalidationPeriod time.Duration `env:"CACHE_INVALIDATION_PERIOD" envDefault:"24h"`
 
 	// Log configuration
 	Verbose uint8 `env:"verbose" envDefault:"0"`

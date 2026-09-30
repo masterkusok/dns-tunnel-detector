@@ -2,9 +2,13 @@ package remote
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
+	"io"
 	"log/slog"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
@@ -18,6 +22,14 @@ type RedisConfig struct {
 	// Client is used for querying Redis.  It must not be nil.
 	Client *redis.Client
 
+	// InvalidationPeriod is the period for which cache records will be stored
+	// in Redis.
+	InvalidationPeriod time.Duration
+
+	// CleanupTicker is used for cleaning up stale records in a Redis remote.
+	// It must not be nil.
+	CleanupTicker *time.Ticker
+
 	// Key is the key of target set in Redis.
 	Key string
 
@@ -27,14 +39,16 @@ type RedisConfig struct {
 
 // Redis is the implementation of the [Interface] that uses Redis as remote.
 type Redis struct {
-	logger        *slog.Logger
-	client        *redis.Client
-	pubSub        *redis.PubSub
-	pubSubWg      sync.WaitGroup
-	notifications chan string
-	clientID      string
-	key           string
-	channel       string
+	logger          *slog.Logger
+	client          *redis.Client
+	pubSub          *redis.PubSub
+	cleanupTicker   *time.Ticker
+	pubSubWg        sync.WaitGroup
+	notifications   chan string
+	clientID        string
+	key             string
+	channel         string
+	invalidationIvl time.Duration
 }
 
 // NewRedis returns properly initialized *Redis.  conf must not be nil and must
@@ -47,16 +61,36 @@ func NewRedis(ctx context.Context, conf *RedisConfig) (r *Redis) {
 		pubSub:   conf.Client.Subscribe(ctx, conf.Channel),
 		pubSubWg: sync.WaitGroup{},
 		// TODO: Make this value configurable, this one is cringe.
-		notifications: make(chan string, 100),
-		key:           conf.Key,
-		channel:       conf.Channel,
+		notifications:   make(chan string, 100),
+		key:             conf.Key,
+		channel:         conf.Channel,
+		invalidationIvl: conf.InvalidationPeriod,
+		cleanupTicker:   conf.CleanupTicker,
 	}
 
 	r.pubSubWg.Go(func() {
 		r.handleSub(ctx)
 	})
 
+	go func() {
+		r.cleanup(ctx)
+	}()
+
 	return r
+}
+
+// cleanup removes stale records from remote ZSet.  It is intended to be run in
+// a separate goroutine.
+func (r *Redis) cleanup(ctx context.Context) {
+	for range r.cleanupTicker.C {
+		r.logger.DebugContext(ctx, "remote cleanup started")
+
+		now := time.Now().UnixNano()
+		_, err := r.client.ZRemRangeByScore(ctx, r.key, "-inf", strconv.FormatInt(now, 10)).Result()
+		if err != nil {
+			r.logger.ErrorContext(ctx, "cleaning up stale records", "error", err)
+		}
+	}
 }
 
 // handleSub handles new items from subcription.  It is intended to be run in a
@@ -88,7 +122,11 @@ type subscriptionItem struct {
 
 // NotifyAdd implements the [Interface] for the *Redis.
 func (r *Redis) NotifyAdd(ctx context.Context, v string) {
-	added, err := r.client.SAdd(ctx, r.key, v).Result()
+	expiresAt := time.Now().Add(r.invalidationIvl).UnixNano()
+	added, err := r.client.ZAdd(ctx, r.key, redis.Z{
+		Score:  float64(expiresAt),
+		Member: v,
+	}).Result()
 	if err != nil {
 		r.logger.ErrorContext(ctx, "setting item in redis", "error", err)
 
@@ -133,16 +171,30 @@ func (r *Redis) Notifications() (res <-chan string) {
 func (r *Redis) Map(ctx context.Context) (res map[string]struct{}) {
 	r.logger.DebugContext(ctx, "fetching remote vault members")
 
+	expiry := time.Now().UnixNano()
 	// TODO: Optimize using SSCAN op.
-	res, err := r.client.SMembersMap(ctx, r.key).Result()
+	members, err := r.client.ZRangeArgs(ctx, redis.ZRangeArgs{
+		Key:     r.key,
+		Start:   strconv.FormatInt(expiry+1, 10),
+		Stop:    "inf",
+		ByScore: true,
+	}).Result()
 	if err != nil {
 		r.logger.ErrorContext(ctx, "fetching remote set", "error", err)
 
 		return nil
 	}
 
+	res = make(map[string]struct{}, len(members))
+	for _, member := range members {
+		res[member] = struct{}{}
+	}
+
 	return res
 }
+
+// type check
+var _ io.Closer = (*Redis)(nil)
 
 // Close implements the [io.Closer] interface for *Redis.
 func (r *Redis) Close() (err error) {
@@ -154,6 +206,7 @@ func (r *Redis) Close() (err error) {
 	r.pubSubWg.Wait()
 
 	close(r.notifications)
+	r.cleanupTicker.Stop()
 
 	return nil
 }

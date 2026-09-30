@@ -3,7 +3,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/AdguardTeam/dnsproxy/proxy"
 	"github.com/masterkusok/dns-tunnel-detector/detector"
+	"github.com/masterkusok/dns-tunnel-detector/internal/errors"
 	"github.com/masterkusok/dns-tunnel-detector/internal/handler"
 	"github.com/masterkusok/dns-tunnel-detector/job/heuristic"
 	"github.com/masterkusok/dns-tunnel-detector/job/statistic"
@@ -61,21 +61,25 @@ func Main() {
 		})
 
 		_, err = client.Ping(ctx).Result()
-		checkError(ctx, logger, fmt.Errorf("sending ping to redis remote: %w", err))
+		checkError(ctx, logger, errors.Annotate(err, "sending ping to redis remote: %w"))
 
 		cRedis := remote.NewRedis(ctx, &remote.RedisConfig{
-			Logger:  logger.With("prefix", "client_ip_remote"),
-			Client:  client,
-			Key:     envs.ClientIPsRedisKey,
-			Channel: envs.ClientIPsRedisChannel,
+			Logger:             logger.With("prefix", "client_ip_remote"),
+			Client:             client,
+			Key:                envs.ClientIPsRedisKey,
+			Channel:            envs.ClientIPsRedisChannel,
+			InvalidationPeriod: envs.CacheInvalidationPeriod,
+			CleanupTicker:      time.NewTicker(envs.RemoteCleanupPeriod),
 		})
 		defer cRedis.Close()
 
 		eRedis := remote.NewRedis(ctx, &remote.RedisConfig{
-			Logger:  logger.With("prefix", "etld_remote"),
-			Client:  client,
-			Key:     envs.ETLDRedisKey,
-			Channel: envs.ETLDRedisChannel,
+			Logger:             logger.With("prefix", "etld_remote"),
+			Client:             client,
+			Key:                envs.ETLDRedisKey,
+			Channel:            envs.ETLDRedisChannel,
+			InvalidationPeriod: envs.CacheInvalidationPeriod,
+			CleanupTicker:      time.NewTicker(envs.RemoteCleanupPeriod),
 		})
 		defer eRedis.Close()
 

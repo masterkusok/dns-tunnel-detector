@@ -53,15 +53,20 @@ func newTestRedis(tb testing.TB, channel string) (r *remote.Redis, client *redis
 		DB:   testDB,
 	})
 
-	r = remote.NewRedis(context.Background(), &remote.RedisConfig{
-		Logger:  testutil.NewDiscardLogger(),
-		Client:  client,
-		Key:     testKey,
-		Channel: channel,
+	r = remote.NewRedis(tb.Context(), &remote.RedisConfig{
+		Logger:             testutil.NewDiscardLogger(),
+		Client:             client,
+		Key:                testKey,
+		Channel:            channel,
+		CleanupTicker:      time.NewTicker(time.Hour),
+		InvalidationPeriod: time.Hour,
 	})
 
 	tb.Cleanup(func() {
-		_, err := client.FlushAll(context.Background()).Result()
+		ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
+		defer cancel()
+
+		_, err := client.FlushAll(ctx).Result()
 		require.NoError(tb, err)
 		require.NoError(tb, r.Close())
 	})
@@ -79,10 +84,11 @@ func TestRedis_NotifyAdd(t *testing.T) {
 	pubSubChan := uuid.New().String()
 	r, client := newTestRedis(t, pubSubChan)
 
-	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
+	ctx, cancel := context.WithTimeout(t.Context(), testTimeout)
 	t.Cleanup(cancel)
 
 	pubSub := client.Subscribe(ctx, pubSubChan)
+
 	ch := pubSub.Channel()
 
 	want := "192.0.2.0"
@@ -101,17 +107,16 @@ func TestRedis_NotifyAdd(t *testing.T) {
 
 	assert.Equal(t, want, got.String())
 
-	ok, err = client.SIsMember(ctx, testKey, want).Result()
+	members, err := client.ZRange(ctx, testKey, 0, -1).Result()
 	require.NoError(t, err)
-
-	assert.True(t, ok)
+	assert.Contains(t, members, want)
 }
 
 func TestRedis_Notifications(t *testing.T) {
 	pubSubChan := uuid.New().String()
 	r, client := newTestRedis(t, pubSubChan)
 
-	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
+	ctx, cancel := context.WithTimeout(t.Context(), testTimeout)
 	t.Cleanup(cancel)
 
 	ch := r.Notifications()
@@ -137,18 +142,48 @@ func TestRedis_Map(t *testing.T) {
 	pubSubChan := uuid.New().String()
 	r, client := newTestRedis(t, pubSubChan)
 
-	ctx, cancel := context.WithTimeout(context.Background(), testTimeout)
+	ctx, cancel := context.WithTimeout(t.Context(), testTimeout)
 	t.Cleanup(cancel)
 
 	want := map[string]struct{}{
 		"192.0.2.0": {},
 		"192.0.2.1": {},
 	}
+
+	expiresAt := time.Now().Add(time.Hour).UnixNano()
 	for k := range want {
-		_, err := client.SAdd(ctx, testKey, k).Result()
+		_, err := client.ZAdd(ctx, testKey, redis.Z{
+			Score:  float64(expiresAt),
+			Member: k,
+		}).Result()
 		require.NoError(t, err)
 	}
 
 	got := r.Map(ctx)
 	assert.True(t, cmp.Equal(want, got))
+}
+
+func TestRedis_Map_expired(t *testing.T) {
+	pubSubChan := uuid.New().String()
+	r, client := newTestRedis(t, pubSubChan)
+
+	ctx, cancel := context.WithTimeout(t.Context(), testTimeout)
+	t.Cleanup(cancel)
+
+	want := map[string]struct{}{
+		"192.0.2.0": {},
+		"192.0.2.1": {},
+	}
+
+	expiresAt := time.Now().Add(-1 * time.Hour).UnixNano()
+	for k := range want {
+		_, err := client.ZAdd(ctx, testKey, redis.Z{
+			Score:  float64(expiresAt),
+			Member: k,
+		}).Result()
+		require.NoError(t, err)
+	}
+
+	got := r.Map(ctx)
+	assert.Empty(t, got)
 }
